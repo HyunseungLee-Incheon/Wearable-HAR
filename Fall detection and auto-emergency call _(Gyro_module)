@@ -1,0 +1,117 @@
+#include <MPU6050Sensor.h>    // MPU 센서 헤더 사용
+
+MPU6050Sensor Sensor;
+
+
+  int cnt;
+  int dtcnt=0;
+  float r, p, y;
+  float r_1, p_1, y_1 = 0;
+  float dr,dp=0;
+  float dr_1, dp_1 =0;
+
+void setup()        // 통신속도 115200
+{
+  Sensor.begin(0x68);
+  Serial.begin(115200);
+  cnt = 1000;
+}
+
+
+static int Timer(int t)      // 필터 돌릴 용도로 타이머
+{
+  static long newDt, oldDt;
+  double dt; 
+  
+  newDt = millis();
+  dt = ((newDt - oldDt));  
+  if(dt >= t)
+  {
+    oldDt = newDt;
+    return 1;
+  }
+  else
+    return 0;    
+}
+
+void loop() 
+{
+  if(Timer(100) == 1)       // 타이머 100마다 자이로 값 불러들임
+  {
+    dtcnt++; 
+
+    if(dtcnt==5)            // 자이로 값 5 번 불러들일때 마다 그 값 저장해서 미분 + 미분값 증폭
+    {
+      dr_1=abs((dr-r_1)*100);         
+      dp_1=abs((dp-p_1)*100);
+      dr=r_1;
+      dp=p_1;
+      dtcnt=0;     
+    }
+    else                  // 넘어짐 컷
+    {
+      if(dr_1>=4000 || dp_1>=4000)
+      {
+        help_signal();
+      }
+      else
+      {
+        normal_signal();
+      }
+    }
+    
+   // print_rpy_angle(r_1,p_1,dr_1,dp_1); 
+   // print_d_angle(dr_1,dp_1);
+  }
+  else
+  {
+    if(cnt==0)            //// LPF 0.95/0.05
+    {
+      Sensor.read_rpy_angle(r,p,y);
+      r_1=r_1*0.05f + r*0.95f;
+      p_1=p_1*0.05f + p*0.95f;
+      y_1=y_1*0.05f + y*0.95f;
+    }
+    else        /// 초기화 설정
+    {
+      Sensor.read_rpy_angle(r,p,y);
+      cnt--;
+    }
+  }
+}
+
+void print_rpy_angle(float r, float p, float dr, float dp)      // 
+{
+  Serial.print("#RPY : ");
+  Serial.print(r,2);
+  Serial.print('\t');
+  Serial.print(p,2);
+  Serial.print('\t');
+  Serial.print(dr,2);
+  Serial.print('\t');
+  Serial.print(dp,2);
+  Serial.print('\n');
+}
+
+void print_d_angle(float dr, float dp)
+{
+  Serial.print("#RPY : ");
+  Serial.print(dr,2);
+  Serial.print('\t');
+  Serial.print(dp,2);
+  Serial.print('\n');
+}
+void help_signal()
+{
+  Serial.print("G");
+  Serial.print(1);
+  Serial.print(".");
+  Serial.print('\n');
+}
+void normal_signal()
+{
+  Serial.print("G");
+  Serial.print(0);
+  Serial.print(".");
+  Serial.print('\n');
+}
