@@ -1,0 +1,53 @@
+#include <SharpDistSensor.h>
+#include <TinyScreen.h>
+#include <Wire.h>
+#include <SPI.h>
+#include <SharpIR.h>
+#include <SoftwareSerial.h>
+
+
+SoftwareSerial BT(8,9);
+
+
+#define NUM 3
+const byte sensorPin = A1;
+const byte sensorPin1 = A2;
+const byte sensorPin2 = A3;
+
+const byte medianFilterWindowSize = 5;
+
+SharpDistSensor sensor(sensorPin, medianFilterWindowSize);
+SharpDistSensor sensor1(sensorPin1, medianFilterWindowSize);
+SharpDistSensor sensor2(sensorPin2, medianFilterWindowSize);
+
+int bl=1;
+int i,j,temp,k;
+int danger[NUM] = {0, };
+
+
+void setup() {
+  Serial.begin(9600);
+  BT.begin(9600);
+  pinMode(10,OUTPUT);
+  pinMode(4,OUTPUT); // sensorPin
+  pinMode(2,OUTPUT); // sensorPin1
+  pinMode(3,OUTPUT); // sensorPin2
+  
+}
+
+void loop() {
+  unsigned int distance_back = sensor.getDist();
+  unsigned int distance_right = sensor1.getDist();
+  unsigned int distance_left = sensor2.getDist();
+ 
+ 
+  if(distance_back <180 || distance_right < 180 || distance_left < 180){
+	BT.println("1");
+  }
+  
+  delay(50);
+  BT.println("0");
+  delay(500);
+  
+}
+
