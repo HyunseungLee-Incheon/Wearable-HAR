@@ -1,0 +1,90 @@
+#include <SPI.h>
+#include <AFE4403_Raw.h>
+#define Pressure_Sensor_pin A1
+//#include <SoftwareSerial.h>
+#include <TinyScreen.h>
+#include <Wire.h>
+
+#define  BLACK           0x00
+#define BLUE            0xE0
+#define RED             0x03
+#define GREEN           0x1C
+#define DGREEN           0x0C
+#define YELLOW          0x1F
+#define WHITE           0xFF
+#define ALPHA           0xFE
+#define BROWN           0x32
+
+
+
+int RDY_FLAG=0,count=0;
+int Pressure_Sensor;
+AFE4403 AFE;
+//SoftwareSerial Blue(5,1);
+TinyScreen display = TinyScreen(0);
+
+
+void setup() {
+  pinMode(A1,INPUT);
+  
+  Serial.begin(9600);
+ // Blue.begin(9600);
+
+  SPI.begin();
+  SPI.setDataMode(SPI_MODE0);	//CPHA = CPOL = 0    MODE = 0
+  SPI.setBitOrder(MSBFIRST);
+  AFE.pinselect(10,3,4); //SPI_STE , AFE4403_PWDN , AFE4403_RESET
+  AFE.register_set();
+  AFE.green_led(true);
+  AFE.setLEDCurrent(30,30);
+  AFE.setGain(0,0,0,0,2);
+  //AFE.dumpreg();
+  attachInterrupt(digitalPinToInterrupt(2),ADC_RDY_FLAG,RISING);
+
+  Wire.begin();//initialize I2C before we can initialize TinyScreen- not needed for TinyScreen+
+  display.begin();
+  //setBrightness(brightness);//sets main current level, valid levels are 0-15
+  display.setBrightness(10);
+  
+}
+
+
+void loop() {
+  Pressure_Sensor=analogRead(Pressure_Sensor_pin);
+  if(RDY_FLAG)
+  {
+     RDY_FLAG=0; 
+     detachInterrupt(digitalPinToInterrupt(2)); 
+     AFE.pulse_calculation(count);
+     
+     if(count>=10 && AFE.dVal>0){
+       Serial.print("Pressure : ");
+       Serial.println(Pressure_Sensor);
+       Serial.print("BPM : ");
+       Serial.println(AFE.dVal);
+       display.setFont(liberationSans_14ptFontInfo);
+       display.setCursor(0,20);
+       display.fontColor(BLUE,BLACK);
+       display.clearScreen();
+       display.print((int)AFE.dVal);
+       display.setFont(liberationSans_14ptFontInfo);
+       display.setCursor(35,20);
+       display.fontColor(RED,BLACK);
+       display.print("BPM");
+
+       delay(300);
+     }
+     
+     if(count>=10)
+     {
+       count=0;
+     }
+     attachInterrupt(digitalPinToInterrupt(2),ADC_RDY_FLAG,RISING);
+  }
+  
+}
+void ADC_RDY_FLAG() //interrupt Flag
+{ 
+  RDY_FLAG=1;
+  count+=1;
+}
